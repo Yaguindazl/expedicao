@@ -1,0 +1,35 @@
+{
+  "name": "@smart40/expedicao-oee",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SMART 4.0 · Grupo 5 · Console de Produção (Expedição & OEE) — Sprint 1, somente dados simulados",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "vite --port 8084",
+    "build": "tsc -b && vite build",
+    "build:mfe": "tsc -b && vite build --mode mfe",
+    "preview": "vite preview --port 8084",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "single-spa-react": "^6.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^25.0.1",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.6.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}

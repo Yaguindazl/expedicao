@@ -1,0 +1,71 @@
+/*
+ * Tailwind do Grupo 5 — configurado para conviver com os outros micro-frontends:
+ *  1. SEM preflight (o reset global mudaria a página inteira, inclusive a tela dos outros grupos);
+ *  2. classes com prefixo `exp:` (ex.: `exp:flex`; o Tailwind só aceita letras no prefixo), para não colidir com outro grupo que use Tailwind;
+ *  3. cores vindas do theme.css do professor (variáveis --smart-*), para o visual ser o mesmo de todos.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme) prefix(exp);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../";
+
+@theme inline {
+  --color-smart-app: var(--smart-bg-app);
+  --color-smart-surface: var(--smart-bg-surface);
+  --color-smart-hover: var(--smart-bg-surface-hover);
+  --color-smart-input: var(--smart-bg-input);
+  --color-smart-border: var(--smart-border-color);
+  --color-smart-primary: var(--smart-accent-primary);
+  --color-smart-primary-hover: var(--smart-accent-primary-hover);
+  --color-smart-cobot: var(--smart-accent-cobot);
+  --color-smart-ok: var(--smart-status-ok);
+  --color-smart-warn: var(--smart-status-warning);
+  --color-smart-danger: var(--smart-status-danger);
+  --color-smart-off: var(--smart-status-off);
+  --color-smart-text: var(--smart-text-primary);
+  --color-smart-text2: var(--smart-text-secondary);
+  --color-smart-muted: var(--smart-text-muted);
+  --color-smart-digital: var(--smart-text-digital);
+  --color-smart-line: color-mix(in srgb, var(--smart-text-secondary) 14%, transparent);
+  --color-smart-raised: color-mix(in srgb, var(--smart-bg-surface) 70%, var(--smart-bg-app));
+  --font-smart: "IBM Plex Sans", var(--smart-font-family);
+  --font-smart-mono: var(--smart-font-mono);
+}
+
+/* Raiz do módulo: tudo do Grupo 5 fica dentro desta classe.
+   Fica na camada base para as classes utilitárias (exp:*) sempre ganharem. */
+@layer base {
+  .expedicao-oee-scope {
+    font-family: "IBM Plex Sans", var(--smart-font-family);
+    font-variant-numeric: tabular-nums;
+    color: var(--smart-text-primary);
+    background: var(--smart-bg-app);
+    box-sizing: border-box;
+    line-height: 1.4;
+  }
+  .expedicao-oee-scope *,
+  .expedicao-oee-scope *::before,
+  .expedicao-oee-scope *::after {
+    box-sizing: inherit;
+  }
+  .expedicao-oee-scope h1,
+  .expedicao-oee-scope h2,
+  .expedicao-oee-scope h3,
+  .expedicao-oee-scope p {
+    margin: 0;
+  }
+  .expedicao-oee-scope button,
+  .expedicao-oee-scope select {
+    font: inherit;
+  }
+  .expedicao-oee-scope :focus-visible {
+    outline: 2px solid var(--smart-border-focus);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .expedicao-oee-scope * {
+      transition: none !important;
+    }
+  }
+}

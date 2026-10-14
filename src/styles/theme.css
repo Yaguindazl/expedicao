@@ -1,0 +1,222 @@
+/* ==========================================================================
+   SMART 4.0 — THÈME CSS INDUSTRIEL GLOBAL
+   Fiche de Styles de Base / Design System para Micro-Frontends
+   ==========================================================================
+   Instruções de Uso para os Grupos:
+   1. O App Shell (Grupo 1) deve importar este arquivo na raiz da aplicação.
+   2. Todos os grupos podem consumir as variáveis CSS (var(--smart-...))
+      em seus componentes para manter a consistência visual da máquina.
+   3. Evite sobrescrever as variáveis globais dentro dos módulos.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. PALETA DE CORES E VARIÁVEIS DO SISTEMA
+   -------------------------------------------------------------------------- */
+:root {
+  /* Cores Principais do Painel Industrial (Siemens & UR Palette) */
+  --smart-bg-app: #0f172a;            /* Azul escuro profundo (fundo geral) */
+  --smart-bg-surface: #1e293b;        /* Cinza chumbo (cards e painéis) */
+  --smart-bg-surface-hover: #334155;  /* Hover em elementos de superfície */
+  --smart-bg-input: #020617;          /* Fundo de campos/display digital */
+
+  /* Cores de Destaque e Acentos */
+  --smart-accent-primary: #0284c7;    /* Azul Siemens / HMI */
+  --smart-accent-primary-hover: #0369a1;
+  --smart-accent-cobot: #ea580c;      /* Laranja Universal Robots */
+
+  /* Sinalização de Segurança e Status Industrial (ISO 3864 / IEC 60073) */
+  --smart-status-ok: #22c55e;         /* Verde: Operando / Normal */
+  --smart-status-ok-glow: rgba(34, 197, 94, 0.3);
+  --smart-status-warning: #f59e0b;    /* Amarelo/Âmbar: Alerta / Aguardando */
+  --smart-status-warning-glow: rgba(245, 158, 11, 0.3);
+  --smart-status-danger: #ef4444;     /* Vermelho: Erro / Parada de Emergência */
+  --smart-status-danger-glow: rgba(239, 68, 68, 0.4);
+  --smart-status-off: #64748b;        /* Cinza: Desligado / Inativo */
+
+  /* Tipografia e Textos */
+  --smart-text-primary: #f8fafc;      /* Branco puro para leitura principal */
+  --smart-text-secondary: #94a3b8;    /* Cinza claro para rótulos secundários */
+  --smart-text-muted: #64748b;        /* Cinza escuro para detalhes/desativados */
+  --smart-text-digital: #22d3ee;      /* Ciano digital para displays de telemetria */
+
+  /* Fontes */
+  --smart-font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --smart-font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* Bordas e Divisores */
+  --smart-border-color: #334155;
+  --smart-border-focus: #38bdf8;
+  --smart-radius-sm: 4px;
+  --smart-radius-md: 8px;
+  --smart-radius-lg: 12px;
+  --smart-radius-full: 9999px;
+
+  /* Espaçamentos Padronizados */
+  --smart-space-xs: 4px;
+  --smart-space-sm: 8px;
+  --smart-space-md: 16px;
+  --smart-space-lg: 24px;
+  --smart-space-xl: 32px;
+
+  /* Sombras e Efeitos Especiais */
+  --smart-shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --smart-shadow-glow-red: 0 0 15px var(--smart-status-danger-glow);
+  --smart-shadow-glow-green: 0 0 15px var(--smart-status-ok-glow);
+
+  /* Transições */
+  --smart-transition-fast: 0.15s ease-in-out;
+  --smart-transition-normal: 0.25s ease-in-out;
+}
+
+/* --------------------------------------------------------------------------
+   2. ESTILOS BASE REUTILIZÁVEIS PARA OS COMPONENTES INDUSTRIAIS
+   -------------------------------------------------------------------------- */
+
+/* Card / Container de Módulo Industrial */
+.smart-card {
+  background-color: var(--smart-bg-surface);
+  border: 1px solid var(--smart-border-color);
+  border-radius: var(--smart-radius-md);
+  padding: var(--smart-space-md);
+  box-shadow: var(--smart-shadow-card);
+  color: var(--smart-text-primary);
+  font-family: var(--smart-font-family);
+}
+
+.smart-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--smart-border-color);
+  padding-bottom: var(--smart-space-sm);
+  margin-bottom: var(--smart-space-md);
+}
+
+.smart-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--smart-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: var(--smart-space-sm);
+}
+
+/* Display Digital para Telemetria / Posições do Robô / QR Code */
+.smart-digital-display {
+  background-color: var(--smart-bg-input);
+  border: 1px solid var(--smart-border-color);
+  border-radius: var(--smart-radius-sm);
+  padding: var(--smart-space-sm) var(--smart-space-md);
+  font-family: var(--smart-font-mono);
+  color: var(--smart-text-digital);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+
+/* Indicadores de Status Luminosos (Sinaleiro Industrial) */
+.smart-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--smart-radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.smart-status-pill--running {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--smart-status-ok);
+  border: 1px solid var(--smart-status-ok);
+  box-shadow: var(--smart-shadow-glow-green);
+}
+
+.smart-status-pill--warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--smart-status-warning);
+  border: 1px solid var(--smart-status-warning);
+}
+
+.smart-status-pill--danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--smart-status-danger);
+  border: 1px solid var(--smart-status-danger);
+  box-shadow: var(--smart-shadow-glow-red);
+}
+
+/* Botões de Comando Físico Virtualizados */
+.smart-btn {
+  font-family: var(--smart-font-family);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 10px 18px;
+  border-radius: var(--smart-radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all var(--smart-transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--smart-space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.smart-btn--primary {
+  background-color: var(--smart-accent-primary);
+  color: #ffffff;
+}
+
+.smart-btn--primary:hover {
+  background-color: var(--smart-accent-primary-hover);
+}
+
+/* Botão de Parada de Emergência (E-Stop) */
+.smart-btn--emergency {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: #ffffff;
+  border: 2px solid #fca5a5;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+  font-weight: 800;
+  padding: 14px 24px;
+}
+
+.smart-btn--emergency:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+}
+
+/* Tabela Industrial de Rastreabilidade / Eventos */
+.smart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--smart-font-family);
+  font-size: 0.875rem;
+  color: var(--smart-text-primary);
+}
+
+.smart-table th {
+  background-color: var(--smart-bg-input);
+  color: var(--smart-text-secondary);
+  text-align: left;
+  padding: var(--smart-space-sm) var(--smart-space-md);
+  border-bottom: 2px solid var(--smart-border-color);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.smart-table td {
+  padding: var(--smart-space-sm) var(--smart-space-md);
+  border-bottom: 1px solid var(--smart-border-color);
+}
+
+.smart-table tr:hover {
+  background-color: var(--smart-bg-surface-hover);
+}
