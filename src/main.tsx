@@ -4,7 +4,7 @@
  */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import * as App from "./App";
 import { MockProducer } from "./mocks/mockProducer";
 import "./styles/theme.css"; // no Shell quem importa é o Grupo 1; aqui importamos para rodar sozinho
 import "./styles/g5.css";
