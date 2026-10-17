@@ -17,6 +17,7 @@
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@module-federation/vite": "^1.23.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "single-spa-react": "^6.0.2"
