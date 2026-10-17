@@ -10,7 +10,13 @@ import { calcularOee } from "./domain/oee";
 import { effectiveConnection, statusTimes } from "./domain/store";
 import { useConsole } from "./domain/useConsole";
 import { SHIFT_CONFIG_HIPOTETICO } from "./mocks/fixtures";
-import type { MockProducer } from "./mocks/mockProducer";
+import type { MockProducer as TMock } from "./mocks/mockProducer";
+import { MockProducer } from "./mocks/mockProducer";
+import "./styles/theme.css"; // no Shell quem importa é o Grupo 1; aqui importamos para rodar sozinho
+import "./styles/g5.css";
+
+const mock = new MockProducer();
+
 
 const CONN: Record<string, { dot: string; label: string }> = {
   CONNECTED: { dot: "exp:bg-smart-ok", label: "Conectado" },
@@ -24,10 +30,10 @@ export interface AppProps {
   /** onde o barramento `smart40:*` é publicado (padrão: window) */
   bus?: EventTarget;
   /** presente só no modo isolado: o simulador local e seus controles */
-  standaloneMock?: MockProducer;
+  standaloneMock?: TMock;
 }
 
-export function App({ bus, standaloneMock }: AppProps) {
+export default function App({ bus, standaloneMock = mock }: AppProps) {
   const { state, now, sendCommand } = useConsole(bus);
   const conn = effectiveConnection(state, now);
   const stale = conn === "STALE" || conn === "DISCONNECTED";
