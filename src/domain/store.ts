@@ -16,11 +16,33 @@ import type {
 import type { ExpeditionMetricsExtrasV02 } from "../contracts/proposta-g5-v0.2";
 import { ORDERS_MOCK, type ProductionOrderMock } from "../mocks/fixtures";
 import { narrate, QUEUE_HIGH, type FeedItem } from "./narrator";
+import { calcularOee, ppmJanela } from "./oee";
+import { SHIFT_CONFIG_HIPOTETICO } from "../mocks/fixtures";
 
 export const FEED_LIMIT = 200;
 export const SEEN_LIMIT = 500;
 export const STALE_AFTER_MS = 3_000;
 export const ACK_TIMEOUT_MS = 3_000;
+/** Sprint 2: de quanto em quanto tempo guardamos um ponto para os gráficos, e quantos pontos (10 min) */
+export const SAMPLE_EVERY_MS = 5_000;
+export const HISTORY_LIMIT = 120;
+export const SCAN_TIMES_LIMIT = 300;
+
+/**
+ * Dados da expedição como o console guarda. Palete e ordens ativas são opcionais porque o
+ * simulador do professor (Sprint 2) não manda esses campos — na tela aparecem como N/D.
+ */
+export type ExpeditionData = Omit<ExpeditionMetricsEvent["data"], "pallet" | "activeOrders"> & {
+  pallet?: ExpeditionMetricsEvent["data"]["pallet"];
+  activeOrders?: number;
+} & ExpeditionMetricsExtrasV02;
+
+/** Um ponto do histórico usado nos gráficos */
+export interface Sample {
+  at: number;
+  ppm: number | null;
+  oee: number | null;
+}
 
 interface Stamped<T> {
   data: T;
@@ -44,7 +66,7 @@ export interface ConsoleState {
   machine?: Stamped<MachineTelemetryEvent["data"]>;
   robot?: Stamped<RobotTelemetryEvent["data"]>;
   lastScan?: Stamped<TraceabilityScanEvent["data"]>;
-  expedition?: Stamped<ExpeditionMetricsEvent["data"] & ExpeditionMetricsExtrasV02>;
+  expedition?: Stamped<ExpeditionData>;
   /** peças vistas nesta sessão (dedupe por pieceId) */
   seenPieces: string[];
   seenEvents: string[];
@@ -56,13 +78,20 @@ export interface ConsoleState {
   commands: CommandEntry[];
   orders: ProductionOrderMock[];
   invalidCount: number;
+  /** horário (relógio local) de cada peça inspecionada — base do PPM em janela de 60 s */
+  scanTimes: number[];
+  /** pontos para os gráficos (PPM e OEE ao longo do tempo) */
+  history: Sample[];
+  lastSampleAt: number;
 }
 
 export type Action =
   | { kind: "event"; event: Smart40Event; receivedAt: number }
   | { kind: "invalid"; reason: string; receivedAt: number }
   | { kind: "command-sent"; command: CommandRequestedEvent; orderCode?: string; sentAt: number }
-  | { kind: "tick"; now: number };
+  | { kind: "tick"; now: number }
+  /** Sprint 2: zera os contadores da sessão. É só na tela — não manda nada para a máquina. */
+  | { kind: "reset"; now: number };
 
 export function initialState(now: number): ConsoleState {
   return {
@@ -77,6 +106,9 @@ export function initialState(now: number): ConsoleState {
     commands: [],
     orders: ORDERS_MOCK.map((o) => ({ ...o })),
     invalidCount: 0,
+    scanTimes: [],
+    history: [],
+    lastSampleAt: now,
   };
 }
 
@@ -87,7 +119,22 @@ const tailBounded = (list: string[], item: string, limit: number) => (list.lengt
 export function reducer(state: ConsoleState, action: Action): ConsoleState {
   switch (action.kind) {
     case "tick":
-      return expireCommands(state, action.now);
+      return sample(expireCommands(state, action.now), action.now);
+    case "reset":
+      return {
+        ...state,
+        sessionStart: action.now,
+        session: { produced: 0, approved: 0, rejected: 0 },
+        statusTimeMs: {},
+        // o tempo volta a contar a partir de agora, no estado em que a máquina está
+        statusSince: state.statusSince ? { status: state.statusSince.status, at: action.now } : undefined,
+        failures: 0,
+        scanTimes: [],
+        history: [],
+        lastSampleAt: action.now,
+        // seenPieces fica: a peça parada no leitor não pode contar de novo depois do reset
+        feed: pushBounded(state.feed, { id: `reset-${action.now}`, at: new Date(action.now).toISOString(), station: "Sistema", severity: "info", text: "Contadores zerados pelo operador (só na tela, a máquina não foi afetada)" }, FEED_LIMIT),
+      };
     case "invalid":
       return {
         ...state,
@@ -111,7 +158,7 @@ function applyEvent(state: ConsoleState, ev: Smart40Event, now: number): Console
     machineStatus: state.machine?.data.status,
     emergencyActive: state.machine?.data.emergencyActive,
     robotProgram: state.robot?.data.programStatus,
-    palletFull: state.expedition ? state.expedition.data.pallet.currentCount >= state.expedition.data.pallet.capacity : undefined,
+    palletFull: state.expedition?.data.pallet ? state.expedition.data.pallet.currentCount >= state.expedition.data.pallet.capacity : undefined,
     queueHigh: state.expedition ? state.expedition.data.outputQueue >= QUEUE_HIGH : undefined,
     connection: state.connection,
     seenPieces: new Set(state.seenPieces),
@@ -132,7 +179,8 @@ function applyEvent(state: ConsoleState, ev: Smart40Event, now: number): Console
 
   switch (ev.type) {
     case "machine.telemetry": {
-      const at = Date.parse(ev.timestamp);
+      // relógio local (now): o mesmo usado em statusTimes e no reset, para não misturar relógios
+      const at = now;
       const prev = next.statusSince;
       if (!prev) next.statusSince = { status: ev.data.status, at };
       else if (prev.status !== ev.data.status) {
@@ -151,6 +199,7 @@ function applyEvent(state: ConsoleState, ev: Smart40Event, now: number): Console
       next.seenPieces = tailBounded(next.seenPieces, ev.data.pieceId, SEEN_LIMIT);
       next.lastScan = { data: ev.data, at: now, source: ev.source };
       if (ev.data.result !== "PENDING") {
+        next.scanTimes = [...next.scanTimes, now].slice(-SCAN_TIMES_LIMIT);
         next.session = {
           produced: next.session.produced + 1,
           approved: next.session.approved + (ev.data.result === "APPROVED" ? 1 : 0),
@@ -160,7 +209,7 @@ function applyEvent(state: ConsoleState, ev: Smart40Event, now: number): Console
       break;
     }
     case "expedition.metrics":
-      next.expedition = { data: ev.data as ExpeditionMetricsEvent["data"] & ExpeditionMetricsExtrasV02, at: now, source: ev.source };
+      next.expedition = { data: ev.data as ExpeditionData, at: now, source: ev.source };
       break;
     case "command.ack": {
       const cmd = next.commands.find((c) => c.commandId === ev.data.commandId);
@@ -190,6 +239,22 @@ function expireCommands(state: ConsoleState, now: number): ConsoleState {
     feed = pushBounded(feed, { id: `timeout-${c.commandId}`, at: new Date(now).toISOString(), station: "Expedição", severity: "alerta", text: `Sem resposta do simulador para ${c.action} após ${ACK_TIMEOUT_MS / 1000} s` }, FEED_LIMIT);
   }
   return { ...state, feed, commands: state.commands.map((c) => (ids.has(c.commandId) ? { ...c, result: "TIMEOUT" } : c)) };
+}
+
+/** Guarda um ponto do gráfico a cada SAMPLE_EVERY_MS (só quando já há dados da máquina). */
+function sample(state: ConsoleState, now: number): ConsoleState {
+  if (!state.machine || now - state.lastSampleAt < SAMPLE_EVERY_MS) return state;
+  const times = statusTimes(state, now);
+  const elapsedMs = Object.values(times).reduce((s, v) => s + (v ?? 0), 0);
+  const oee = calcularOee({
+    runningMs: times.RUNNING ?? 0,
+    elapsedMs,
+    produced: state.session.produced,
+    approved: state.session.approved,
+    idealCycleTimeMs: SHIFT_CONFIG_HIPOTETICO.idealCycleTimeMs,
+  }).oee;
+  const point: Sample = { at: now, ppm: ppmJanela(state.scanTimes, now, state.sessionStart), oee };
+  return { ...state, lastSampleAt: now, history: [...state.history, point].slice(-HISTORY_LIMIT) };
 }
 
 // ---------- seletores (leituras derivadas para a tela) ----------

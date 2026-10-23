@@ -69,8 +69,8 @@ export function LineStrip({ state, stale }: { state: ConsoleState; stale: boolea
           name: "Expedição",
           owner: "Grupo 5",
           href: "/expedicao",
-          tone: e.pallet.currentCount >= e.pallet.capacity ? "atencao" : "normal",
-          state: e.pallet.currentCount >= e.pallet.capacity ? "Palete cheio" : "Recebendo",
+          tone: e.pallet && e.pallet.currentCount >= e.pallet.capacity ? "atencao" : "normal",
+          state: e.pallet && e.pallet.currentCount >= e.pallet.capacity ? "Palete cheio" : "Recebendo",
           detail: `${fmtInt(e.outputQueue)} na fila`,
         }
       : waiting("Expedição", "Grupo 5", "/expedicao"),

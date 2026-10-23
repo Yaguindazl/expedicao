@@ -42,5 +42,7 @@ export function useConsole(bus: EventTarget = window) {
     [bus],
   );
 
-  return { state, now, sendCommand };
+  const resetCounters = useCallback(() => dispatch({ kind: "reset", now: Date.now() }), []);
+
+  return { state, now, sendCommand, resetCounters };
 }

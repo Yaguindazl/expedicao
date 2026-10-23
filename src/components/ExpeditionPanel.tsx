@@ -15,24 +15,28 @@ export function ExpeditionPanel({
   send: (action: CommandAction) => void;
 }) {
   const e = state.expedition?.data;
-  const cap = e?.pallet.capacity ?? 12;
-  const count = e?.pallet.currentCount ?? 0;
-  const full = !!e && count >= cap;
+  const hasPallet = !!e?.pallet;
+  // 28 = posições da expedição no CLP (DB9, pos1–pos28); usado só para desenhar enquanto não chega dado
+  const cap = e?.pallet?.capacity ?? 28;
+  const count = e?.pallet?.currentCount ?? 0;
+  const full = hasPallet && count >= cap;
+  const simulated = !state.expedition || state.expedition.source === "mock";
   const pending = state.commands.find((c) => c.action === "PALLETIZE" && !c.result);
   const last = state.commands.find((c) => c.action === "PALLETIZE" && c.result);
   const lastFailed = last && (last.result === "REJECTED" || last.result === "TIMEOUT");
 
   return (
-    <Section title="Expedição" aside={<MockTag />}>
+    <Section title="Expedição" aside={simulated ? <MockTag /> : null}>
       <div className="exp:flex exp:items-baseline exp:justify-between">
         <span className="exp:text-sm exp:text-smart-text2">Palete atual</span>
         {full ? <span className="exp:text-sm exp:font-medium exp:text-smart-warn">Cheio</span> : null}
       </div>
       <div className="exp:mt-1 exp:text-4xl exp:font-semibold exp:leading-none exp:text-smart-text">
-        {e ? fmtInt(count) : "N/D"}
-        <span className="exp:ml-1.5 exp:text-base exp:font-normal exp:text-smart-text2">de {fmtInt(cap)} peças</span>
+        {hasPallet ? fmtInt(count) : "N/D"}
+        {hasPallet ? <span className="exp:ml-1.5 exp:text-base exp:font-normal exp:text-smart-text2">de {fmtInt(cap)} peças</span> : null}
       </div>
-      <div className="exp:mt-4 exp:grid exp:gap-1" style={{ gridTemplateColumns: `repeat(${cap}, minmax(0, 1fr))` }} role="progressbar" aria-valuemin={0} aria-valuemax={cap} aria-valuenow={count} aria-label="Ocupação do palete">
+      {e && !hasPallet ? <p className="exp:mt-2 exp:text-sm exp:text-smart-text2">A fonte atual não informa o palete.</p> : null}
+      <div className="exp:mt-4 exp:grid exp:gap-1" style={{ display: hasPallet ? undefined : "none", gridTemplateColumns: `repeat(${cap}, minmax(0, 1fr))` }} role="progressbar" aria-valuemin={0} aria-valuemax={cap} aria-valuenow={count} aria-label="Ocupação do palete">
         {Array.from({ length: cap }, (_, i) => (
           <div key={i} className={`exp:h-2.5 exp:rounded-sm exp:transition-colors ${i < count ? (full ? "exp:bg-smart-warn" : "exp:bg-smart-primary") : "exp:bg-smart-raised"}`} />
         ))}

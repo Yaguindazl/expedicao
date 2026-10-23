@@ -1,22 +1,15 @@
 {
-    "headers": [
-        {
-            "source": "/(.*)",
-            "headers": [
-                {
-                    "key": "Access-Control-Allow-Origin",
-                    "value": "*"
-                }
-            ]
-        },
-        {
-            "source": "/remoteEntry.js",
-            "headers": [
-                {
-                    "key": "Cache-Control",
-                    "value": "no-cache"
-                }
-            ]
-        }
-    ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/smart40-expedicao-oee.js",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ]
 }

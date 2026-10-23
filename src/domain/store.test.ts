@@ -1,6 +1,6 @@
 import type { Smart40Event } from "../contracts/contrato-smart40-v0.1";
 import { buildCommand } from "../bus/eventBus";
-import { ACK_TIMEOUT_MS, FEED_LIMIT, initialState, isStale, reducer, statusTimes, type ConsoleState } from "./store";
+import { ACK_TIMEOUT_MS, FEED_LIMIT, HISTORY_LIMIT, initialState, isStale, reducer, SAMPLE_EVERY_MS, statusTimes, type ConsoleState } from "./store";
 
 const T0 = Date.parse("2026-10-09T21:00:00.000Z");
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -28,10 +28,10 @@ describe("reducer do console", () => {
 
   it("acumula tempo por estado e conta falhas pelas entradas em EMERGENCY/ALARM", () => {
     let s = initialState(T0);
-    s = apply(s, machine("RUNNING", T0));
-    s = apply(s, machine("RUNNING", T0 + 500)); // telemetria repetida: sem frase nova
-    s = apply(s, machine("EMERGENCY", T0 + 10_000, true));
-    s = apply(s, machine("IDLE", T0 + 12_000));
+    s = apply(s, machine("RUNNING", T0), T0);
+    s = apply(s, machine("RUNNING", T0 + 500), T0 + 500); // telemetria repetida: sem frase nova
+    s = apply(s, machine("EMERGENCY", T0 + 10_000, true), T0 + 10_000);
+    s = apply(s, machine("IDLE", T0 + 12_000), T0 + 12_000);
     const t = statusTimes(s, T0 + 15_000);
     expect(t.RUNNING).toBe(10_000);
     expect(t.EMERGENCY).toBe(2_000);
@@ -68,5 +68,28 @@ describe("reducer do console", () => {
     for (let i = 0; i < FEED_LIMIT + 50; i++) s = reducer(s, { kind: "invalid", reason: "x", receivedAt: T0 + i });
     expect(s.feed).toHaveLength(FEED_LIMIT);
     expect(s.invalidCount).toBe(FEED_LIMIT + 50);
+  });
+
+  it("zera os contadores sem recontar a peça que continua no leitor", () => {
+    let s = initialState(T0);
+    s = apply(s, machine("RUNNING", T0), T0);
+    s = apply(s, scan("PECA-1", "APPROVED", T0 + 1_000), T0 + 1_000);
+    s = apply(s, machine("EMERGENCY", T0 + 2_000, true), T0 + 2_000);
+    s = reducer(s, { kind: "reset", now: T0 + 3_000 });
+    expect(s.session).toEqual({ produced: 0, approved: 0, rejected: 0 });
+    expect(s.failures).toBe(0);
+    expect(s.scanTimes).toEqual([]);
+    expect(statusTimes(s, T0 + 4_000)).toEqual({ EMERGENCY: 1_000 }); // conta a partir do reset
+    s = apply(s, scan("PECA-1", "APPROVED", T0 + 3_500), T0 + 3_500); // a mesma peça repetida pelo simulador
+    expect(s.session.produced).toBe(0);
+    expect(s.feed[0].text).toContain("Contadores zerados");
+  });
+
+  it("guarda um ponto de gráfico a cada 5 s e limita o histórico", () => {
+    let s = initialState(T0);
+    s = apply(s, machine("RUNNING", T0), T0);
+    for (let i = 1; i <= HISTORY_LIMIT + 20; i++) s = reducer(s, { kind: "tick", now: T0 + i * SAMPLE_EVERY_MS });
+    expect(s.history).toHaveLength(HISTORY_LIMIT);
+    expect(s.history.at(-1)!.at).toBe(T0 + (HISTORY_LIMIT + 20) * SAMPLE_EVERY_MS);
   });
 });

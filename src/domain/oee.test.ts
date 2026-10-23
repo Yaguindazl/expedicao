@@ -1,4 +1,4 @@
-import { calcularOee, mtbfMs, taxaRefugo } from "./oee";
+import { calcularOee, mtbfMs, ppmJanela, taxaRefugo } from "./oee";
 
 describe("calcularOee", () => {
   it("reproduz o exemplo do documento: 60 min, 6 min parado, ciclo 4 s, 729 peças, 15 rejeitadas → 79,3%", () => {
@@ -30,5 +30,19 @@ describe("taxaRefugo e MTBF", () => {
   it("MTBF é null sem falhas", () => {
     expect(mtbfMs(60_000, 0)).toBeNull();
     expect(mtbfMs(60_000, 3)).toBe(20_000);
+  });
+});
+
+describe("PPM em janela de 60 s", () => {
+  const T = 1_000_000;
+  it("conta só as peças do último minuto", () => {
+    const scans = [T - 70_000, T - 50_000, T - 30_000, T - 10_000, T - 1];
+    expect(ppmJanela(scans, T, T - 600_000)).toBe(4);
+  });
+  it("no começo da sessão usa o tempo que já passou", () => {
+    expect(ppmJanela([T - 15_000, T - 5_000], T, T - 20_000)).toBe(6); // 2 peças em 20 s = 6/min
+  });
+  it("com menos de 10 s de sessão devolve N/D", () => {
+    expect(ppmJanela([T - 1_000], T, T - 5_000)).toBeNull();
   });
 });

@@ -1,9 +1,46 @@
 # SMART 4.0 · Grupo 5 · Console de Produção (Expedição & OEE)
 
-Micro-frontend do **Grupo 5** para a Sprint 1 da Planta N2: acompanha o processo inteiro, narra o que acontece em frases simples e mostra os resultados da expedição.
-**Somente dados simulados.** Nenhum comando chega ao CLP, ao robô ou à esteira. Todo comando sai com `simulation: true` e recebe um ACK do mock.
+Micro-frontend do **Grupo 5** da Planta N2: acompanha o processo inteiro, narra o que acontece em frases simples e mostra os resultados da expedição (OEE, ritmo, refugo, palete, ordens).
+**Somente dados simulados.** Nenhum comando chega ao CLP, ao robô ou à esteira. Todo comando sai com `simulation: true`.
 
-Stack: **React 18 + TypeScript + Vite + Tailwind CSS v4**, integrável ao App Shell por **Single-SPA** (`single-spa-react`).
+Stack: **React 18 + TypeScript + Vite + Tailwind CSS v4 + Recharts**, integrável ao App Shell por **Single-SPA** (`single-spa-react`).
+
+## Sprint 2: o que entrou
+
+O PDF da Sprint 2 pede ao Grupo 5: cartões de KPI, biblioteca de gráficos, cálculo dinâmico do OEE %, função de reset dos contadores e deploy na Vercel (porta 8084). Também pede para testar com o simulador WebSocket do professor, usando o token do grupo.
+
+| Pedido do professor | Onde está |
+| --- | --- |
+| Cartões de KPI | painel **Desempenho**: OEE, produzidas, ritmo (PPM), refugo e falhas |
+| Biblioteca de gráficos (Chart.js ou Recharts) | **Recharts**, em `components/ChartsPanel.tsx`: pizza de aprovadas × rejeitadas, PPM e OEE nos últimos 10 min |
+| Cálculo dinâmico do OEE % e do PPM | `domain/oee.ts` (`calcularOee` e `ppmJanela`), recalculados a cada atualização |
+| Função de reset dos contadores | botão **Zerar contadores** (pede confirmação). Zera só a tela, nada vai para a máquina |
+| WebSocket com token (`?token=aluno-token-grupo5`) | `dev/wsBridge.ts`, só no modo isolado. No Shell, quem conecta é o Grupo 1 |
+| Formato do simulador do professor | `bus/telemetriaAdapter.ts` traduz `smart40:telemetria` para os eventos do contrato |
+| Codespaces e deploy automático | `.devcontainer/devcontainer.json`, `.github/workflows/deploy-vercel.yml`, `vercel.json` |
+
+Sobre a fórmula: o exemplo do PDF calcula `aprovadas ÷ (aprovadas + rejeitadas)`. Isso é o fator **Qualidade** do OEE. O console mostra esse fator e o OEE completo (Disponibilidade × Performance × Qualidade).
+
+O que o simulador do professor **não** manda aparece como `N/D`, nunca como zero: palete, ordens ativas e velocidade do robô. O `oeePercentual` e o `ritmoProducaoPecasPorMinuto` dele são valores fixos, então o console calcula os seus a partir das peças que passam.
+
+### Testar com o simulador do professor
+
+Em dois terminais:
+
+```bash
+npm run simulador   # simulador do professor em ws://localhost:8080
+npm run dev         # console em http://localhost:8084
+```
+
+Abra **http://localhost:8084/?fonte=professor** (ou use o botão "Simulador" → "WebSocket"). Sem o `?fonte=professor`, a tela usa o simulador interno do Grupo 5, que funciona sem internet.
+
+No Codespaces ou com o simulador no Render, crie um arquivo `.env` com a URL pública (veja `.env.example`).
+
+### Deploy na Vercel (GitHub Actions)
+
+Cada `git push` na `main` roda os testes, gera o build e publica. Antes do primeiro push, cadastre em **Settings → Secrets and variables → Actions** do repositório: `VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`.
+
+O build publica duas coisas: a tela isolada (`/`) e o módulo para o App Shell (`/smart40-expedicao-oee.js`, com CORS liberado no `vercel.json`).
 
 ## Como rodar
 
@@ -14,8 +51,9 @@ npm install
 npm run dev        # modo isolado em http://localhost:8084, com o simulador local
 npm test           # testes unitários (Vitest)
 npm run lint       # checagem de tipos (tsc)
-npm run build      # build do app isolado (pasta dist/)
-npm run build:mfe  # módulo para o App Shell (dist-mfe/smart40-expedicao-oee.js)
+npm run simulador  # simulador WebSocket do professor (porta 8080)
+npm run build      # tela isolada + módulo do Shell, tudo na pasta dist/
+npm run build:mfe  # só o módulo para o App Shell (dist-mfe/smart40-expedicao-oee.js)
 ```
 
 ## O que a tela entrega (runbook, Grupo 5)
@@ -59,6 +97,10 @@ Princípio visual, inspirado na ISA-101 (norma de IHM de alto desempenho): o que
 { "imports": { "@smart40/expedicao-oee": "http://localhost:8084/smart40-expedicao-oee.js" } }
 ```
 
+Depois do deploy, o Grupo 1 troca o endereço pela URL da Vercel: `https://<nosso-projeto>.vercel.app/smart40-expedicao-oee.js`.
+
+O módulo escuta os eventos do contrato (`smart40:machine.telemetry` etc.) **e** o pacote do simulador do professor repassado como `smart40:telemetria`, como no código do Grupo 1 no PDF da Sprint 2. Funciona com qualquer um dos dois.
+
 Para servir o módulo localmente: `npm run build:mfe && npx vite preview --outDir dist-mfe --port 8084`.
 
 ```js
@@ -89,10 +131,12 @@ O botão "Simulador", no canto inferior direito, aparece só no modo isolado.
 ```
 src/
   contracts/   contrato v0.1 (oficial) + proposta v0.2 do G5
-  bus/         barramento smart40:* e validação de payload
+  bus/         barramento smart40:*, validação e tradutor da telemetria do professor
+  dev/         ponte WebSocket (só no modo isolado)
   mocks/       simulador determinístico e fixtures (ordens, ciclo ideal HIPOTÉTICO)
   domain/      OEE, narrador (evento → frase), estado (reducer) e hook
-  components/  telas
+  components/  telas (inclui ChartsPanel, com os gráficos)
+tools/         simulador do professor (mock_server_smart40.cjs)
   App.tsx                    console
   main.tsx                   entrada do modo isolado
   smart40-expedicao-oee.tsx  lifecycles do Single-SPA

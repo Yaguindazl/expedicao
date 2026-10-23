@@ -70,7 +70,7 @@ export class MockProducer {
       tickMs: opts.tickMs ?? 500,
       ticksPerPiece: opts.ticksPerPiece ?? 8,
       rejectRate: opts.rejectRate ?? 0.08,
-      palletCapacity: opts.palletCapacity ?? 12,
+      palletCapacity: opts.palletCapacity ?? 28, // posições da expedição no CLP (pos1–pos28)
     };
     this.target = opts.target ?? window;
     this.now = opts.now ?? Date.now;

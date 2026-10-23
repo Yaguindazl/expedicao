@@ -1,0 +1,54 @@
+{
+  "name": "SMART 4.0 · Grupo 5 · Expedição & OEE",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "javascript.updateImportsOnFileMove.enabled": "always"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ritwickdey.LiveServer"
+      ]
+    }
+  },
+  "forwardPorts": [
+    8080,
+    9000,
+    8081,
+    8082,
+    8083,
+    8084
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "Mock WebSocket Server",
+      "onAutoForward": "notify"
+    },
+    "9000": {
+      "label": "App Shell (Host)",
+      "onAutoForward": "openBrowser"
+    },
+    "8081": {
+      "label": "Grupo 2 - IHM Siemens",
+      "onAutoForward": "notify"
+    },
+    "8082": {
+      "label": "Grupo 3 - Robô UR",
+      "onAutoForward": "notify"
+    },
+    "8083": {
+      "label": "Grupo 4 - Rastreabilidade QR",
+      "onAutoForward": "notify"
+    },
+    "8084": {
+      "label": "Grupo 5 - Expedição & OEE",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "npm install"
+}

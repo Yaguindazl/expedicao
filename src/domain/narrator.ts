@@ -2,6 +2,7 @@
  * "A conversa" do console: traduz eventos do barramento em frases simples.
  * Só gera frase quando algo MUDA — a telemetria chega a cada 500 ms e repetir tudo afogaria o feed.
  */
+import type { ExpeditionData } from "./store";
 import type { MachineStatus, RobotProgramStatus, Smart40Event } from "../contracts/contrato-smart40-v0.1";
 
 export type Station = "IHM" | "Robô" | "QR Code" | "Esteira" | "Expedição" | "Sistema";
@@ -100,10 +101,10 @@ export function narrate(event: Smart40Event, mem: NarratorMemory): FeedItem | nu
       return { ...base, station: "QR Code", severity: "info", text: `${d.pieceId} lida, aguardando inspeção` };
     }
     case "expedition.metrics": {
-      const d = event.data;
-      const full = d.pallet.currentCount >= d.pallet.capacity;
+      const d = event.data as ExpeditionData; // palete pode faltar (simulador do professor)
+      const full = !!d.pallet && d.pallet.currentCount >= d.pallet.capacity;
       if (full && !mem.palletFull)
-        return { ...base, station: "Expedição", severity: "alerta", text: `Palete cheio com ${d.pallet.currentCount} peças. Feche o palete para liberar a fila` };
+        return { ...base, station: "Expedição", severity: "alerta", text: `Palete cheio com ${d.pallet!.currentCount} peças. Feche o palete para liberar a fila` };
       const high = d.outputQueue >= QUEUE_HIGH;
       if (high && !mem.queueHigh)
         return { ...base, station: "Expedição", severity: "alerta", text: `${d.outputQueue} peças acumuladas na fila de saída` };

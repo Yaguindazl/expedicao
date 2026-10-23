@@ -1,0 +1,44 @@
+name: Deploy Micro-Frontend na Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar Dependências
+        run: npm ci
+
+      - name: Executar Lint e Testes
+        run: |
+          npm run lint --if-present
+          npm run test --if-present
+
+      - name: Build do Módulo
+        run: npm run build
+
+      - name: Deploy para Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && '--prod' || '' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

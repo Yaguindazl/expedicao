@@ -6,17 +6,19 @@ import { OrdersTable } from "./components/OrdersTable";
 import { PerformancePanel } from "./components/PerformancePanel";
 import { SimPanel } from "./components/SimPanel";
 import { fmtTime } from "./components/ui";
-import { calcularOee } from "./domain/oee";
+import { ChartsPanel } from "./components/ChartsPanel";
+import { calcularOee, ppmJanela } from "./domain/oee";
 import { effectiveConnection, statusTimes } from "./domain/store";
 import { useConsole } from "./domain/useConsole";
 import { SHIFT_CONFIG_HIPOTETICO } from "./mocks/fixtures";
-import type { MockProducer as TMock } from "./mocks/mockProducer";
-import { MockProducer } from "./mocks/mockProducer";
-import "./styles/theme.css"; // no Shell quem importa é o Grupo 1; aqui importamos para rodar sozinho
-import "./styles/g5.css";
+import type { MockProducer } from "./mocks/mockProducer";
 
-const mock = new MockProducer();
-
+/** Só existe no modo isolado (npm run dev): qual fonte de dados está fazendo o papel do App Shell */
+export interface StandaloneInfo {
+  fonte: "interno" | "professor";
+  mock?: MockProducer;
+  wsUrl?: string;
+}
 
 const CONN: Record<string, { dot: string; label: string }> = {
   CONNECTED: { dot: "exp:bg-smart-ok", label: "Conectado" },
@@ -29,12 +31,12 @@ const CONN: Record<string, { dot: string; label: string }> = {
 export interface AppProps {
   /** onde o barramento `smart40:*` é publicado (padrão: window) */
   bus?: EventTarget;
-  /** presente só no modo isolado: o simulador local e seus controles */
-  standaloneMock?: TMock;
+  /** presente só no modo isolado: a fonte de dados e os controles de teste */
+  standalone?: StandaloneInfo;
 }
 
-export default function App({ bus, standaloneMock = mock }: AppProps) {
-  const { state, now, sendCommand } = useConsole(bus);
+export function App({ bus, standalone }: AppProps) {
+  const { state, now, sendCommand, resetCounters } = useConsole(bus);
   const conn = effectiveConnection(state, now);
   const stale = conn === "STALE" || conn === "DISCONNECTED";
   const emergency = !!state.machine?.data.emergencyActive;
@@ -46,6 +48,7 @@ export default function App({ bus, standaloneMock = mock }: AppProps) {
     () => calcularOee({ runningMs, elapsedMs, produced: state.session.produced, approved: state.session.approved, idealCycleTimeMs: SHIFT_CONFIG_HIPOTETICO.idealCycleTimeMs }),
     [runningMs, elapsedMs, state.session.produced, state.session.approved],
   );
+  const ppm = ppmJanela(state.scanTimes, now, state.sessionStart);
 
   // Runbook: sem conexão, com dado vencido ou em emergência, os comandos simulados ficam bloqueados
   const blockReason = conn === "DISCONNECTED" ? "sem conexão" : stale ? "dados desatualizados" : emergency ? "emergência ativa" : conn !== "CONNECTED" ? "aguardando conexão" : undefined;
@@ -58,7 +61,7 @@ export default function App({ bus, standaloneMock = mock }: AppProps) {
         <header className="exp:mb-6 exp:flex exp:flex-wrap exp:items-end exp:justify-between exp:gap-4">
           <div>
             <h1 className="exp:text-2xl exp:font-semibold exp:tracking-tight exp:text-smart-text">Console de produção</h1>
-            <p className="exp:mt-1 exp:text-sm exp:text-smart-text2">Bancada SMART 4.0, da partida na IHM à saída na expedição. Dados simulados.</p>
+            <p className="exp:mt-1 exp:text-sm exp:text-smart-text2">Bancada SMART 4.0, da partida na IHM à saída na expedição. {standalone?.fonte === "professor" ? "Dados do simulador do professor (WebSocket)." : "Dados simulados."}</p>
           </div>
           <div className="exp:flex exp:items-center exp:gap-2 exp:text-sm" title={state.latencyMs !== undefined ? `Latência ${state.latencyMs} ms` : undefined}>
             <span aria-hidden="true" className={`exp:inline-block exp:h-2 exp:w-2 exp:rounded-full ${CONN[conn].dot}`} />
@@ -88,21 +91,22 @@ export default function App({ bus, standaloneMock = mock }: AppProps) {
         <div className="exp:mt-6 exp:grid exp:grid-cols-1 exp:gap-6 exp:lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className={`exp:flex exp:min-w-0 exp:flex-col exp:gap-6 ${stale ? "exp:opacity-60" : ""}`}>
             <div className="exp:grid exp:grid-cols-1 exp:gap-6 exp:xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-              <PerformancePanel state={state} oee={oee} times={times} runningMs={runningMs} idealCycleTimeMs={SHIFT_CONFIG_HIPOTETICO.idealCycleTimeMs} />
+              <PerformancePanel state={state} oee={oee} times={times} runningMs={runningMs} idealCycleTimeMs={SHIFT_CONFIG_HIPOTETICO.idealCycleTimeMs} ppm={ppm} onReset={resetCounters} />
               <ExpeditionPanel state={state} canCommand={canCommand} blockReason={blockReason} send={(a) => sendCommand(a)} />
             </div>
+            <ChartsPanel state={state} />
             <OrdersTable state={state} canCommand={canCommand} blockReason={blockReason} send={sendCommand} />
           </div>
           <Feed items={state.feed} />
         </div>
 
         <footer className="exp:mt-8 exp:text-xs exp:text-smart-muted">
-          Sprint 1, contrato v0.1.0. Nenhum comando físico configurado.
+          Sprint 2, contrato v0.1.0. Nenhum comando físico configurado.
           {state.invalidCount > 0 ? ` ${state.invalidCount} dado(s) inválido(s) descartado(s).` : ""}
         </footer>
       </div>
 
-      {standaloneMock ? <SimPanel mock={standaloneMock} /> : null}
+      {standalone ? <SimPanel standalone={standalone} /> : null}
     </div>
   );
 }

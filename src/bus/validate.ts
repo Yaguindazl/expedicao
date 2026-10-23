@@ -49,7 +49,8 @@ function checkData(type: string, d: Record<string, unknown>): string | null {
       const c = d.cartesianMm;
       if (!isObj(c) || !isNum(c.x) || !isNum(c.y) || !isNum(c.z)) return "cartesianMm inválido";
       if (!oneOf(GRIPPER, d.gripper)) return "gripper inválido";
-      if (!isNum(d.speedPercent)) return "speedPercent inválido";
+      // Sprint 2: o simulador do professor não manda a velocidade do robô → opcional aqui (N/D na tela)
+      if (!optNum(d.speedPercent)) return "speedPercent inválido";
       if (!oneOf(PROGRAM, d.programStatus)) return "programStatus inválido";
       if (!optStr(d.programName)) return "programName inválido";
       return null;
@@ -61,11 +62,14 @@ function checkData(type: string, d: Record<string, unknown>): string | null {
       if (!optStr(d.lotId) || !optStr(d.reason)) return "lotId/reason inválido";
       return null;
     case "expedition.metrics": {
-      for (const k of ["producedTotal", "piecesPerMinute", "outputQueue", "activeOrders"]) {
+      for (const k of ["producedTotal", "piecesPerMinute", "outputQueue"]) {
         if (!isNum(d[k])) return `${k} inválido`;
       }
+      // Sprint 2: o simulador do professor não tem palete nem ordens → aceitamos ausentes (N/D na tela),
+      // mas se vierem, precisam estar certos
+      if (!optNum(d.activeOrders)) return "activeOrders inválido";
       const p = d.pallet;
-      if (!isObj(p) || !isNum(p.currentCount) || !isNum(p.capacity) || !optNum(p.occupiedSlots)) return "pallet inválido";
+      if (p !== undefined && (!isObj(p) || !isNum(p.currentCount) || !isNum(p.capacity) || !optNum(p.occupiedSlots))) return "pallet inválido";
       if (!optNum(d.approvedTotal) || !optNum(d.rejectedTotal)) return "extras v0.2 inválidos";
       return null;
     }

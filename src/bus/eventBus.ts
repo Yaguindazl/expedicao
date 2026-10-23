@@ -7,9 +7,12 @@
  *
  * Implementação: CustomEvent no `window`, com o envelope do contrato em `event.detail`.
  * Se o Grupo 1 escolher outro mecanismo (ex.: EventEmitter exportado), só este arquivo muda.
+ *
+ * Sprint 2: também escutamos `smart40:telemetria` (formato do simulador do professor) e traduzimos.
  */
 import type { Smart40Event, CommandRequestedEvent } from "../contracts/contrato-smart40-v0.1";
 import { validateEvent } from "./validate";
+import { TELEMETRIA_EVENT, traduzirTelemetria } from "./telemetriaAdapter";
 
 export const BUS_PREFIX = "smart40:";
 
@@ -36,9 +39,26 @@ export function subscribe(handlers: BusHandlers, target: EventTarget = window): 
     if (result.ok) handlers.onEvent(result.event);
     else handlers.onInvalid?.(result.reason, raw);
   };
+  // Sprint 2: o App Shell do exemplo do professor repassa o pacote inteiro do simulador como
+  // `smart40:telemetria`. Traduzimos para os eventos do contrato e validamos cada um.
+  const telemetriaListener = (e: Event) => {
+    const raw = (e as CustomEvent).detail;
+    const events = traduzirTelemetria(raw);
+    if (!events) {
+      handlers.onInvalid?.("telemetria: formato do simulador não reconhecido", raw);
+      return;
+    }
+    for (const ev of events) {
+      const result = validateEvent(ev);
+      if (result.ok) handlers.onEvent(result.event);
+      else handlers.onInvalid?.(result.reason, ev);
+    }
+  };
   for (const type of SUBSCRIBED_TYPES) target.addEventListener(BUS_PREFIX + type, listener);
+  target.addEventListener(BUS_PREFIX + TELEMETRIA_EVENT, telemetriaListener);
   return () => {
     for (const type of SUBSCRIBED_TYPES) target.removeEventListener(BUS_PREFIX + type, listener);
+    target.removeEventListener(BUS_PREFIX + TELEMETRIA_EVENT, telemetriaListener);
   };
 }
 

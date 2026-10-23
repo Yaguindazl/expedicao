@@ -1,7 +1,38 @@
+import { useEffect, useState } from "react";
 import type { MachineStatus } from "../contracts/contrato-smart40-v0.1";
 import { mtbfMs, taxaRefugo, type OeeResult } from "../domain/oee";
 import type { ConsoleState } from "../domain/store";
-import { fmtDur, fmtInt, fmtPct, MockTag, Section, Stat } from "./ui";
+import { fmtDec, fmtDur, fmtInt, fmtPct, MockTag, Section, Stat } from "./ui";
+
+/**
+ * Sprint 2 — "função de reset dos contadores". Dois cliques (sem janela do navegador, que trava o Shell):
+ * o primeiro pede confirmação por 4 s, o segundo zera. Só zera a tela; nada vai para a máquina.
+ */
+function ResetButton({ onReset }: { onReset: () => void }) {
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    if (!confirm) return;
+    const t = setTimeout(() => setConfirm(false), 4_000);
+    return () => clearTimeout(t);
+  }, [confirm]);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (confirm) {
+          onReset();
+          setConfirm(false);
+        } else setConfirm(true);
+      }}
+      title="Zera peças, tempos, falhas e gráficos desta tela. Não envia nada para a máquina."
+      className={`exp:cursor-pointer exp:rounded-md exp:border exp:px-2.5 exp:py-1 exp:text-xs exp:font-medium exp:transition-colors ${
+        confirm ? "exp:border-smart-warn exp:bg-transparent exp:text-smart-warn" : "exp:border-smart-line exp:bg-transparent exp:text-smart-text2 exp:hover:text-smart-text"
+      }`}
+    >
+      {confirm ? "Confirmar: zerar?" : "Zerar contadores"}
+    </button>
+  );
+}
 
 const STATE_COLOR: Record<MachineStatus, string> = {
   RUNNING: "var(--smart-status-ok)",
@@ -74,20 +105,32 @@ export function PerformancePanel({
   times,
   runningMs,
   idealCycleTimeMs,
+  ppm,
+  onReset,
 }: {
   state: ConsoleState;
   oee: OeeResult;
   times: Partial<Record<MachineStatus, number>>;
   runningMs: number;
   idealCycleTimeMs: number;
+  /** peças por minuto calculadas pelo console (janela de 60 s) */
+  ppm: number | null;
+  onReset: () => void;
 }) {
-  const e = state.expedition?.data;
-  const hasV02 = e?.rejectedTotal !== undefined;
-  const refugo = hasV02 ? taxaRefugo(e!.rejectedTotal!, e!.producedTotal) : taxaRefugo(state.session.rejected, state.session.produced);
+  // Sprint 2: todos os números do painel usam a MESMA base (a sessão), para o reset zerar tudo junto
+  const refugo = taxaRefugo(state.session.rejected, state.session.produced);
   const mtbf = mtbfMs(runningMs, state.failures);
 
   return (
-    <Section title="Desempenho" aside={<MockTag label="protótipo, dados simulados" />}>
+    <Section
+      title="Desempenho"
+      aside={
+        <div className="exp:flex exp:items-center exp:gap-2">
+          <MockTag label={state.machine?.source === "gateway" ? "protótipo" : "protótipo, dados simulados"} />
+          <ResetButton onReset={onReset} />
+        </div>
+      }
+    >
       <div className="exp:grid exp:grid-cols-1 exp:items-center exp:gap-6 exp:sm:grid-cols-[auto_1fr]">
         <div title="OEE = Disponibilidade × Performance × Qualidade">
           <div className="exp:text-sm exp:text-smart-text2">OEE</div>
@@ -102,14 +145,9 @@ export function PerformancePanel({
       {oee.performanceCapped ? <p className="exp:mt-3 exp:text-sm exp:text-smart-warn">A performance passou de 100%: revise o ciclo ideal.</p> : null}
 
       <div className="exp:mt-6 exp:grid exp:grid-cols-2 exp:gap-x-6 exp:gap-y-5 exp:border-t exp:border-smart-line exp:pt-5 exp:md:grid-cols-4">
-        <Stat label="Produzidas" value={fmtInt(e?.producedTotal)} unit="peças" origin="expedition.metrics.producedTotal" />
-        <Stat label="Ritmo" value={fmtInt(e?.piecesPerMinute)} unit="por min" origin="expedition.metrics.piecesPerMinute (janela de 60 s)" />
-        <Stat
-          label="Refugo"
-          value={fmtPct(refugo)}
-          origin={hasV02 ? "expedition.metrics.rejectedTotal (proposta v0.2)" : "traceability.piece-scanned nesta sessão"}
-          tone={refugo !== null && refugo > 0.1 ? "atencao" : "normal"}
-        />
+        <Stat label="Produzidas" value={fmtInt(state.session.produced)} unit="peças" origin="peças inspecionadas nesta sessão (traceability.piece-scanned, sem repetir a mesma peça)" />
+        <Stat label="Ritmo (PPM)" value={fmtDec(ppm)} unit="por min" origin="calculado pelo console: peças inspecionadas nos últimos 60 s" />
+        <Stat label="Refugo" value={fmtPct(refugo)} origin="peças rejeitadas ÷ peças inspecionadas nesta sessão" tone={refugo !== null && refugo > 0.1 ? "atencao" : "normal"} />
         <Stat label="Falhas" value={fmtInt(state.failures)} unit={state.failures > 0 ? `a cada ${fmtDur(mtbf)}` : "na sessão"} origin="histórico de machine.telemetry.status (MTBF = tempo produzindo ÷ falhas)" tone={state.failures > 0 ? "atencao" : "normal"} />
       </div>
 
