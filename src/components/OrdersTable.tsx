@@ -1,4 +1,5 @@
 import type { CommandAction } from "../contracts/contrato-smart40-v0.1";
+import { nomeArquivoCsv, ordensParaCsv } from "../domain/csv";
 import type { ConsoleState } from "../domain/store";
 import type { OrderStatus } from "../mocks/fixtures";
 import { Button, MockTag, Section } from "./ui";
@@ -26,12 +27,10 @@ export function OrdersTable({
   const pendingFor = new Set(state.commands.filter((c) => c.action === "ORDER_RELEASE" && !c.result).map((c) => c.orderCode));
 
   const exportCsv = () => {
-    const header = "code;productCode;productName;priority;dueDate;destination;quantity;status";
-    const rows = state.orders.map((o) => [o.code, o.productCode, o.productName, o.priority, o.dueDate, o.destination, o.quantity, o.status].join(";"));
-    const url = URL.createObjectURL(new Blob([[header, ...rows].join("\n")], { type: "text/csv;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([ordensParaCsv(state.orders)], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ordens-expedicao-simuladas.csv";
+    a.download = nomeArquivoCsv(new Date());
     a.click();
     URL.revokeObjectURL(url);
   };
